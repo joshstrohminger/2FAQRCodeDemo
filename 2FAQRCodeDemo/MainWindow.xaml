@@ -4,9 +4,58 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:_2FAQRCodeDemo"
+        xmlns:System="clr-namespace:System;assembly=mscorlib"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        
+        FontSize="18"
+        Title="MainWindow" Height="600" Width="600">
+    <Window.DataContext>
+        <local:ViewModel/>
+    </Window.DataContext>
+    <Window.Resources>
+        <ObjectDataProvider x:Key="hashes" MethodName="GetValues" ObjectType="{x:Type System:Enum}">
+            <ObjectDataProvider.MethodParameters>
+                <x:Type TypeName="local:HashAlgorithm"/>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+        <Style TargetType="TextBlock">
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <Style TargetType="TextBox">
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+    </Window.Resources>
+    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="290"/>
+            <ColumnDefinition Width="290"/>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <TextBox Grid.Column="0" Grid.Row="0" Text="{Binding Issuer, UpdateSourceTrigger=PropertyChanged}" ToolTip="Issuer"/>
+        <TextBox Grid.Column="0" Grid.Row="1" Text="{Binding User, UpdateSourceTrigger=PropertyChanged}" ToolTip="User"/>
+        <UniformGrid Grid.Column="1" Grid.Row="0" Columns="3">
+            <TextBox Text="{Binding Digits}" ToolTip="Digits"/>
+            <TextBox Text="{Binding Period}" ToolTip="Period"/>
+            <ComboBox ItemsSource="{Binding Source={StaticResource hashes}}" SelectedValue="{Binding Algorithm}" ToolTip="Algorithm"/>
+        </UniformGrid>
+        <Button Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Content="Generate" Command="{Binding Generate, Mode=OneTime}" ToolTip="Generate a new secret and QR Code"/>
+        <Button IsDefault="True" Grid.Column="1" Grid.Row="4" Content="Validate" Command="{Binding VerifyCode, Mode=OneTime}" CommandParameter="{Binding Text, ElementName=Code}"/>
+        <TextBox Grid.Column="1" Grid.Row="3" x:Name="Code" ToolTip="Code to validate"/>
+        <TextBlock Grid.Column="0" Grid.Row="3" Text="{Binding EncodedSecret, Mode=OneWay}" ToolTip="Encoded Secret"/>
+        <TextBlock Grid.Column="1" Grid.Row="5" Text="{Binding Result, Mode=OneWay}" ToolTip="Result of Validation"/>
+        <local:QrCode Grid.Column="0" Grid.Row="4" Grid.RowSpan="2" Margin="10" Uri="{Binding Uri, Mode=OneWay}" Width="270" Height="{Binding Width, RelativeSource={RelativeSource Self}, Mode=OneWay}"/>
+        <TextBlock Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" Text="{Binding Uri, Mode=OneWay}" TextWrapping="Wrap"/>
     </Grid>
 </Window>
