@@ -4,32 +4,35 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:_2FAQRCodeDemo"
-        xmlns:System="clr-namespace:System;assembly=mscorlib"
+        xmlns:system="clr-namespace:System;assembly=mscorlib"
+        xmlns:otpNet="clr-namespace:OtpNet;assembly=Otp.NET"
         mc:Ignorable="d"
-        FontSize="18"
-        Title="MainWindow" Height="600" Width="600">
+        FontSize="18" Icon="QR.ico"
+        Title="2FA QR Code Demo" Height="600" Width="600">
     <Window.DataContext>
         <local:ViewModel/>
     </Window.DataContext>
     <Window.Resources>
-        <ObjectDataProvider x:Key="hashes" MethodName="GetValues" ObjectType="{x:Type System:Enum}">
+        <ObjectDataProvider x:Key="Hashes" MethodName="GetValues" ObjectType="{x:Type system:Enum}">
             <ObjectDataProvider.MethodParameters>
-                <x:Type TypeName="local:HashAlgorithm"/>
+                <x:Type TypeName="otpNet:OtpHashMode"/>
             </ObjectDataProvider.MethodParameters>
         </ObjectDataProvider>
         <Style TargetType="Button">
             <Setter Property="Padding" Value="5"/>
         </Style>
         <Style TargetType="TextBlock">
-            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="TextAlignment" Value="Center"/>
             <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
         <Style TargetType="TextBox">
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
         </Style>
     </Window.Resources>
-    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+    <Grid VerticalAlignment="Top" HorizontalAlignment="Center" Margin="5">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="290"/>
             <ColumnDefinition Width="290"/>
@@ -40,22 +43,48 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
         <TextBox Grid.Column="0" Grid.Row="0" Text="{Binding Issuer, UpdateSourceTrigger=PropertyChanged}" ToolTip="Issuer"/>
         <TextBox Grid.Column="0" Grid.Row="1" Text="{Binding User, UpdateSourceTrigger=PropertyChanged}" ToolTip="User"/>
         <UniformGrid Grid.Column="1" Grid.Row="0" Columns="3">
-            <TextBox Text="{Binding Digits}" ToolTip="Digits"/>
-            <TextBox Text="{Binding Period}" ToolTip="Period"/>
-            <ComboBox ItemsSource="{Binding Source={StaticResource hashes}}" SelectedValue="{Binding Algorithm}" ToolTip="Algorithm"/>
+            <TextBox Text="{Binding Digits, UpdateSourceTrigger=PropertyChanged}" ToolTip="Digits"/>
+            <TextBox Text="{Binding Period, UpdateSourceTrigger=PropertyChanged}" ToolTip="Period"/>
+            <ComboBox ItemsSource="{Binding Source={StaticResource Hashes}}" SelectedValue="{Binding Algorithm}" ToolTip="Algorithm"/>
         </UniformGrid>
-        <Button Grid.Column="0" Grid.Row="2" Grid.ColumnSpan="2" Content="Generate" Command="{Binding Generate, Mode=OneTime}" ToolTip="Generate a new secret and QR Code"/>
-        <Button IsDefault="True" Grid.Column="1" Grid.Row="4" Content="Validate" Command="{Binding VerifyCode, Mode=OneTime}" CommandParameter="{Binding Text, ElementName=Code}"/>
-        <TextBox Grid.Column="1" Grid.Row="3" x:Name="Code" ToolTip="Code to validate"/>
-        <TextBlock Grid.Column="0" Grid.Row="3" Text="{Binding EncodedSecret, Mode=OneWay}" ToolTip="Encoded Secret"/>
-        <TextBlock Grid.Column="1" Grid.Row="5" Text="{Binding Result, Mode=OneWay}" ToolTip="Result of Validation"/>
-        <local:QrCode Grid.Column="0" Grid.Row="4" Grid.RowSpan="2" Margin="10" Uri="{Binding Uri, Mode=OneWay}" Width="270" Height="{Binding Width, RelativeSource={RelativeSource Self}, Mode=OneWay}"/>
-        <TextBlock Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" Text="{Binding Uri, Mode=OneWay}" TextWrapping="Wrap"/>
+        <DockPanel Grid.Column="1" Grid.Row="1" LastChildFill="True">
+            <UniformGrid Columns="2" Width="150" DockPanel.Dock="Left">
+                <TextBox Text="{Binding AllowedPreviousCodes, UpdateSourceTrigger=PropertyChanged}" ToolTip="Number of allowed old codes"/>
+                <TextBox Text="{Binding AllowedFutureCodes, UpdateSourceTrigger=PropertyChanged}" ToolTip="Number of allowed future codes"/>
+            </UniformGrid>
+            <TextBox Text="{Binding TimeOffset, UpdateSourceTrigger=PropertyChanged}" ToolTip="CurrentTime + this => CorrectTime"/>
+        </DockPanel>
+        <UniformGrid Columns="3" Grid.Column="0" Grid.Row="2" ToolTip="Error Correction Level">
+            <ComboBox x:Name="ErrorLevelSelection" SelectedIndex="0" DisplayMemberPath="Label" SelectedValuePath="Value">
+                <local:LabeledErrorCorrection Label="" Value="{x:Null}"/>
+                <local:LabeledErrorCorrection Label="L ~7%" Value="L"/>
+                <local:LabeledErrorCorrection Label="M ~15%" Value="M"/>
+                <local:LabeledErrorCorrection Label="Q ~25%" Value="Q"/>
+                <local:LabeledErrorCorrection Label="H ~30%" Value="H"/>
+            </ComboBox>
+            <TextBox x:Name="Version" ToolTip="QR Code Version, higher => bigger"/>
+            <TextBox x:Name="ContentMargin" ToolTip="Size of whitespace around the QR Code"/>
+        </UniformGrid>
+        <TextBox Grid.Column="1" Grid.Row="2" x:Name="Code" ToolTip="Code to validate"/>
+        <Button Grid.Column="0" Grid.Row="3" Content="Generate New Secret" Command="{Binding GenerateKey, Mode=OneTime}" ToolTip="Generate a new secret"/>
+        <Button IsDefault="True" Grid.Column="1" Grid.Row="3" Content="Validate" Command="{Binding VerifyCode, Mode=OneTime}" CommandParameter="{Binding Text, ElementName=Code}"/>
+        <TextBlock Grid.Column="0" Grid.Row="4" Text="{Binding EncodedSecret, Mode=OneWay}" ToolTip="Encoded Secret"/>
+        <TextBlock Grid.Column="1" Grid.Row="4" Text="{Binding Result, Mode=OneWay}" ToolTip="Result of Validation"/>
+        <TextBlock Grid.Column="0" Grid.Row="5" Grid.ColumnSpan="2" Text="{Binding Uri, Mode=OneWay}"/>
+        <Slider Grid.Column="0" Grid.Row="6" Grid.ColumnSpan="2" Margin="3" x:Name="Sizer" Value="270" IsMoveToPointEnabled="True" Minimum="16" Maximum="580" TickFrequency="1" IsSnapToTickEnabled="True"/>
+        <local:QrCode Grid.Column="0" Grid.Row="7" Grid.ColumnSpan="2"
+                      Uri="{Binding Uri, Mode=OneWay}"
+                      ErrorCorrectionLevel="{Binding SelectedValue, Mode=OneWay, ElementName=ErrorLevelSelection}"
+                      Version="{Binding Text, Mode=OneWay, ElementName=Version}"
+                      ContentMargin="{Binding Text, Mode=OneWay, ElementName=ContentMargin}"
+                      Width="{Binding Value, Mode=OneWay, ElementName=Sizer}" Height="{Binding Width, RelativeSource={RelativeSource Self}, Mode=OneWay}"/>
     </Grid>
 </Window>
+

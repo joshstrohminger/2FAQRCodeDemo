@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Data;
 using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
@@ -65,6 +66,24 @@ namespace _2FAQRCodeDemo
             set => SetValue(ErrorCorrectionLevelProperty, value);
         }
 
+        private static DependencyProperty DrawWidthProperty = DependencyProperty.Register(nameof(DrawWidth),
+            typeof(int), typeof(QrCode), new PropertyMetadata(1, PropertyChangedCallback));
+
+        private int DrawWidth
+        {
+            get => (int) GetValue(DrawWidthProperty);
+            set => SetValue(DrawWidthProperty, value);
+        }
+
+        private static DependencyProperty DrawHeightProperty = DependencyProperty.Register(nameof(DrawHeight),
+            typeof(int), typeof(QrCode), new PropertyMetadata(1, PropertyChangedCallback));
+
+        private int DrawHeight
+        {
+            get => (int)GetValue(DrawHeightProperty);
+            set => SetValue(DrawHeightProperty, value);
+        }
+
         private static void PropertyChangedCallback(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             ((QrCode)d).GenerateQrCode();
@@ -77,6 +96,8 @@ namespace _2FAQRCodeDemo
         public QrCode()
         {
             Loaded += (sender, args) => GenerateQrCode();
+            SetBinding(DrawWidthProperty, new Binding(WidthProperty.Name) {RelativeSource = RelativeSource.Self});
+            SetBinding(DrawHeightProperty, new Binding(HeightProperty.Name) { RelativeSource = RelativeSource.Self });
             InitializeComponent();
         }
 
@@ -95,8 +116,8 @@ namespace _2FAQRCodeDemo
                     Format = BarcodeFormat.QR_CODE,
                     Options = new QrCodeEncodingOptions()
                     {
-                        Width = (int) Width,
-                        Height = (int) Height,
+                        Width = DrawWidth,
+                        Height = DrawHeight,
                         PureBarcode = true,
                         Margin = ContentMargin,
                         ErrorCorrection = ErrorCorrectionLevel.HasValue

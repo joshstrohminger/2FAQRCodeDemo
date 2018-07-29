@@ -1,5 +1,7 @@
 ﻿using System;
+using System.ComponentModel;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using System.Web;
 using System.Windows.Input;
 using OtpNet;
@@ -7,14 +9,6 @@ using _2FAQRCodeDemo.Annotations;
 
 namespace _2FAQRCodeDemo
 {
-    [SuppressMessage("ReSharper", "InconsistentNaming")]
-    public enum HashAlgorithm
-    {
-        [UsedImplicitly] SHA1,
-        [UsedImplicitly] SHA256,
-        [UsedImplicitly] SHA512
-    }
-
     public class ViewModel : ObservableObject
     {
         private string _result;
@@ -23,41 +17,63 @@ namespace _2FAQRCodeDemo
         private Totp _totp;
         private string _issuer = "Some Company";
         private string _user = "josh";
-        private int _digits = 6;
-        private int _period = 30;
-        private HashAlgorithm _algorithm;
+        private ushort _digits = 6;
+        private ushort _period = 30;
+        private OtpHashMode _algorithm;
+        private ushort _allowedPreviousCodes = 1;
+        private ushort _allowedFutureCodes = 1;
+        private TimeSpan _timeOffset = TimeSpan.Zero;
+        private byte[] _secret;
 
-        public ICommand Generate { get; }
+        public ICommand GenerateKey { get; }
         public ICommand VerifyCode { get; }
 
-        public HashAlgorithm Algorithm
+        public TimeSpan TimeOffset
+        {
+            get => _timeOffset;
+            set => UpdateAndBuildOnPropertyChanged(ref _timeOffset, value);
+        }
+
+        public ushort AllowedPreviousCodes
+        {
+            get => _allowedPreviousCodes;
+            set => UpdateAndBuildOnPropertyChanged(ref _allowedPreviousCodes, value);
+        }
+
+        public ushort AllowedFutureCodes
+        {
+            get => _allowedFutureCodes;
+            set => UpdateAndBuildOnPropertyChanged(ref _allowedFutureCodes, value);
+        }
+
+        public OtpHashMode Algorithm
         {
             get => _algorithm;
-            set => UpdateEnumOnPropertyChanged(ref _algorithm, value);
+            set => UpdateEnumAndBuildOnPropertyChanged(ref _algorithm, value);
         }
 
-        public int Digits
+        public ushort Digits
         {
             get => _digits;
-            set => UpdateOnPropertyChanged(ref _digits, value);
+            set => UpdateAndBuildOnPropertyChanged(ref _digits, value);
         }
 
-        public int Period
+        public ushort Period
         {
             get => _period;
-            set => UpdateOnPropertyChanged(ref _period, value);
+            set => UpdateAndBuildOnPropertyChanged(ref _period, value);
         }
 
         public string Issuer
         {
             get => _issuer;
-            set => UpdateCommandOnPropertyChanged(ref _issuer, value);
+            set => UpdateAndBuildOnPropertyChanged(ref _issuer, value);
         }
 
         public string User
         {
             get => _user;
-            set => UpdateCommandOnPropertyChanged(ref _user, value);
+            set => UpdateAndBuildOnPropertyChanged(ref _user, value);
         }
 
         public string Uri
@@ -75,41 +91,75 @@ namespace _2FAQRCodeDemo
         public string EncodedSecret
         {
             get => _encodedSecret;
-            private set => UpdateOnPropertyChanged(ref _encodedSecret, value);
+            private set => UpdateAndBuildOnPropertyChanged(ref _encodedSecret, value);
         }
 
         public ViewModel()
         {
-            Generate = new RelayCommand(GenerateExecute, GenerateCanExecute);
+            GenerateKey = new RelayCommand(GenerateKeyExecute);
             VerifyCode = new RelayCommand<string>(VerifyCodeFromUser);
 
-            GenerateExecute();
+            GenerateKey.Execute(null);
         }
 
-        private bool GenerateCanExecute()
+        private void GenerateKeyExecute()
         {
-            return !string.IsNullOrWhiteSpace(Issuer) && !string.IsNullOrWhiteSpace(User);
+            _secret = KeyGeneration.GenerateRandomKey(10);
+            EncodedSecret = Base32Encoding.ToString(_secret);
         }
 
-        private void GenerateExecute()
+        private void BuildTotpAndUri()
         {
-            if (!GenerateCanExecute()) return;
+            try
+            {
+                var encodedIssuer = HttpUtility.UrlPathEncode(Issuer);
+                var encodedUser = HttpUtility.UrlPathEncode(User);
+                var coercedDigits = Digits.LimitRange(1, 10);
+                var coercedPeriod = Period.LimitRange(1, 60);
 
-            var key = KeyGeneration.GenerateRandomKey(10);
-            var encodedIssuer = HttpUtility.UrlPathEncode(Issuer);
-            var encodedUser = HttpUtility.UrlPathEncode(User);
-            var coercedDigits = Digits.LimitRange(6, 8);
-            var coercedPeriod = Period.LimitRange(5, 60);
-
-            EncodedSecret = Base32Encoding.ToString(key);
-            Uri = $"otpauth://totp/{encodedIssuer}:{encodedUser}?secret={EncodedSecret}&issuer={encodedIssuer}&algorithm={Algorithm}&digits={coercedDigits}&period={coercedPeriod}";
-            _totp = new Totp(key);
+                _totp = new Totp(_secret, coercedPeriod, Algorithm, coercedDigits, new TimeCorrection(DateTime.UtcNow.Add(TimeOffset)));
+                Uri = $"otpauth://totp/{encodedIssuer}:{encodedUser}?secret={EncodedSecret}&issuer={encodedIssuer}&algorithm={Algorithm}&digits={coercedDigits}&period={coercedPeriod}";
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Result = e.Message;
+                Uri = string.Empty;
+            }
         }
 
         private void VerifyCodeFromUser(string code)
         {
-            var date = DateTime.UtcNow;
-            Result = $"{date.ToLocalTime()}{Environment.NewLine}{_totp.VerifyTotp(date, code, out var match, new VerificationWindow(1, 1))} {match}";
+            var utc = DateTime.UtcNow;
+            try
+            {
+                _totp.VerifyTotp(utc, code, out var match,
+                    new VerificationWindow(AllowedPreviousCodes, AllowedFutureCodes));
+                Result = $"{utc.ToLocalTime()}: {match}";
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Result = e.Message;
+            }
+        }
+
+        [NotifyPropertyChangedInvocator]
+        protected virtual void UpdateAndBuildOnPropertyChanged<T>(ref T variable, T value, [CallerMemberName] string propertyName = null) where T : IEquatable<T>
+        {
+            if (UpdateOnPropertyChanged(ref variable, value, propertyName))
+            {
+                BuildTotpAndUri();
+            }
+        }
+
+        [NotifyPropertyChangedInvocator]
+        protected virtual void UpdateEnumAndBuildOnPropertyChanged<T>(ref T variable, T value, [CallerMemberName] string propertyName = null) where T : Enum
+        {
+            if (UpdateEnumOnPropertyChanged(ref variable, value, propertyName))
+            {
+                BuildTotpAndUri();
+            }
         }
     }
 }
