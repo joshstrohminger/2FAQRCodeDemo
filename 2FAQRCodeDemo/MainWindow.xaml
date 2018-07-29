@@ -8,7 +8,7 @@
         xmlns:otpNet="clr-namespace:OtpNet;assembly=Otp.NET"
         mc:Ignorable="d"
         FontSize="18" Icon="QR.ico"
-        Title="2FA QR Code Demo" Height="600" Width="600">
+        Title="2FA QR Code Demo" Height="880" Width="620">
     <Window.DataContext>
         <local:ViewModel/>
     </Window.DataContext>
