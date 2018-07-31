@@ -61,15 +61,15 @@
             </UniformGrid>
             <TextBox Text="{Binding TimeOffset, UpdateSourceTrigger=PropertyChanged}" ToolTip="CurrentTime + this => CorrectTime"/>
         </DockPanel>
-        <UniformGrid Columns="3" Grid.Column="0" Grid.Row="2" ToolTip="Error Correction Level">
-            <ComboBox x:Name="ErrorLevelSelection" SelectedIndex="0" DisplayMemberPath="Label" SelectedValuePath="Value">
-                <local:LabeledErrorCorrection Label="" Value="{x:Null}"/>
+        <UniformGrid Columns="3" Grid.Column="0" Grid.Row="2">
+            <ComboBox x:Name="ErrorLevelSelection" SelectedIndex="0" DisplayMemberPath="Label" SelectedValuePath="Value" ToolTip="Error Correction Level">
+                <local:LabeledErrorCorrection Label="Default" Value="{x:Null}"/>
                 <local:LabeledErrorCorrection Label="L ~7%" Value="L"/>
                 <local:LabeledErrorCorrection Label="M ~15%" Value="M"/>
                 <local:LabeledErrorCorrection Label="Q ~25%" Value="Q"/>
                 <local:LabeledErrorCorrection Label="H ~30%" Value="H"/>
             </ComboBox>
-            <TextBox x:Name="Version" ToolTip="QR Code Version, higher => bigger"/>
+            <TextBox x:Name="Version" ToolTip="QR Code Version, higher => bigger, leave blank to auto-determine"/>
             <TextBox x:Name="ContentMargin" ToolTip="Size of whitespace around the QR Code"/>
         </UniformGrid>
         <TextBox Grid.Column="1" Grid.Row="2" x:Name="Code" ToolTip="Code to validate"/>
